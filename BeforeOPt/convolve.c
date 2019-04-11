@@ -4,6 +4,9 @@
 #include <math.h>
 #include <string.h>
 
+#define SIZE       8
+#define PI         3.141592653589793
+#define TWO_PI     (2.0 * PI)
 #define SWAP(a,b)  tempr=(a);(a)=(b);(b)=tempr
 
 int nextPowerOf2(int m)
@@ -27,38 +30,38 @@ double * scaleInputs(int * buf, int nItems, int nextPower)
         {
             tempFloatArray[j] = (float)buf[i]/(float)2147483647.0;
             tempFloatArray[j+1] = (float)0.0;
-            if(i == 4000)
+            /*if(i == 4000)
             {
                 fourthousands = j;
                 printf("tempFloatArray[4000]: %f\n", tempFloatArray[j]);
                 printf("tempFloatArray[4000+1]: %f\n", tempFloatArray[j+1]);
-            }
+            }*/
         }
         else if(buf[i] < 0)
         {
             tempFloatArray[j] = (float)buf[i]/(float)2147483648.0;
             tempFloatArray[j+1] = (float)0.0;
-            if(i == 4000)
+            /*if(i == 4000)
             {
                 fourthousands = j;
                 printf("tempFloatArray[4000]: %f\n", tempFloatArray[j]);
                 printf("tempFloatArray[4000+1]: %f\n", tempFloatArray[j+1]);
-            }
+            }*/
         }
         else
         {
             tempFloatArray[j] = (float)0.0;
             tempFloatArray[j+1] = (float)0.0;
-            if(i == 4000)
+            /*if(i == 4000)
             {
                 fourthousands = j;
                 printf("tempFloatArray[4000]: %f\n", tempFloatArray[j]);
                 printf("tempFloatArray[4000+1]: %f\n", tempFloatArray[j+1]);
-            }
+            }*/
         }
     }
 
-    printf("j value of 4000: %d \n", fourthousands);
+    //printf("j value of 4000: %d \n", fourthousands);
     //printf("tempFloatArray[8000]: %f\n", tempFloatArray[8000]);
 
     //printf("-------scale inputs--------\n");
@@ -78,7 +81,7 @@ double * scaleInputs(int * buf, int nItems, int nextPower)
         }
     }
 
-    printf("newBuf[8000]: %lf\n", newBuf[8000]);
+    //printf("newBuf[8000]: %lf\n", newBuf[8000]);
     return newBuf;
 }
 
@@ -93,7 +96,6 @@ int * scaleOutputs(double * buf, int nItems)
     outputbuf = (int *) malloc(nItems*sizeof(int));
     temp = (double *) malloc(nItems*sizeof(double));
 
-    // find the max positive number and min negative number for scaling 
     for(int i = 0; i < nItems; i++)
     {
         if(buf[i] > 0 && buf[i] > posMax)
@@ -165,7 +167,6 @@ double *complexMultiply(double x[], double h[], int ii){
     return y;
 }
 
-
 //  The four1 FFT from Numerical Recipes in C,
 //  p. 507 - 508.
 //  Note:  changed float data types to double.
@@ -236,7 +237,7 @@ int main(int argc, char * argv[])
     char * inputFileName = argv[1];
     char * impulseFileName = argv[2];
     char * outputFileName = argv[3];
-    printf("here\n");
+    //printf("here\n");
 
     SNDFILE *sf;
     SF_INFO info;
@@ -297,7 +298,7 @@ int main(int argc, char * argv[])
         printf("Failed to open the impulse file.\n");
         exit(-1);
     }
-    printf("here2\n");
+    //printf("here2\n");
 
     /* Print some of the info, and figure out how much data to read. */
     i_f = impulseInfo.frames;
@@ -340,17 +341,18 @@ int main(int argc, char * argv[])
     printf("Next power : %d\n", nextPower);
 
     int * inputP2;
-    inputP2 = (int *) malloc(nextPower*sizeof(int));
+    inputP2 = (int *) malloc((nextPowerOf2(max))*sizeof(int));
     int * impulseP2;
-    impulseP2 = (int *) malloc(nextPower*sizeof(int));
+    impulseP2 = (int *) malloc((nextPowerOf2(max))*sizeof(int));
 
 
-    for(int i = 0; i < nextPower; i++)
+    // jamming tuning technique
+    for(int i = 0; i < (nextPowerOf2(max)); i++)
     {
         inputP2[i] = 0;
     }
 
-    for(int i = 0; i < nextPower; i++)
+    for(int i = 0; i < (nextPowerOf2(max)); i++)
     {
         impulseP2[i] = 0;
     }
@@ -386,8 +388,8 @@ int main(int argc, char * argv[])
     printf("newImpulseBuf[8000]: %lf\n", newImpulseBuf[8000] );
 
 
-    four1(newInputBuf - 1, nextPower, 1);
-    four1(newImpulseBuf - 1, nextPower, 1);
+    four1(newInputBuf - 1, (nextPowerOf2(max)), 1);
+    four1(newImpulseBuf - 1, (nextPowerOf2(max)), 1);
 
     double * multiply;
     multiply = (double *) malloc((nextPower<<1)*sizeof(double));
@@ -415,12 +417,14 @@ int main(int argc, char * argv[])
     //float *output_buf;
     int *outputvalues;
     outputvalues = (int *) malloc(nextPower*sizeof(int));
+
+    // tuning: eliminate common subexpressions
     int output_buf_size = num + impulse_num - 1;
 
     //allocate space for float data in output data;
     //output_buf = (float *) malloc(output_buf_size*sizeof(float));
 
-    outputvalues = scaleOutputs(multiply, output_buf_size);
+    outputvalues = scaleOutputs(multiply, num + impulse_num - 1);
 
 
     SNDFILE *out;
@@ -442,7 +446,7 @@ int main(int argc, char * argv[])
 
     printf("here2\n");
 
-    int outputSize = sf_write_int(out, outputvalues, output_buf_size); // temp_output_size should be actual output size
+    int outputSize = sf_write_int(out, outputvalues, num + impulse_num - 1); // temp_output_size should be actual output size
     
     printf("here3\n");
     sf_close(out);
